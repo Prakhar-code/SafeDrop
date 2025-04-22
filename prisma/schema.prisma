@@ -1,0 +1,62 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String
+  email         String       @unique
+  password      String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  pairingCodes  PairingCode[]
+  pairings      Pairing[]    @relation("UserPairings")
+  connectedTo   Pairing[]    @relation("ConnectedUserPairings")
+  sentFiles     FileShare[]  @relation("SentFiles")
+  receivedFiles FileShare[]  @relation("ReceivedFiles")
+}
+
+model PairingCode {
+  id        String    @id @default(cuid())
+  code      String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+}
+
+model Pairing {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation("UserPairings", fields: [userId], references: [id], onDelete: Cascade)
+  connectedUserId String
+  connectedUser   User      @relation("ConnectedUserPairings", fields: [connectedUserId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+
+  @@unique([userId, connectedUserId])
+}
+
+model FileShare {
+  id            String    @id @default(cuid())
+  fileId        String
+  fileName      String
+  fileSize      Int
+  encryptionKey String
+  senderId      String
+  sender        User      @relation("SentFiles", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId   String
+  recipient     User      @relation("ReceivedFiles", fields: [recipientId], references: [id], onDelete: Cascade)
+  downloaded    Boolean   @default(false)
+  downloadedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime? @default(dbgenerated("NOW() + interval '7 days'"))
+}
